@@ -165,59 +165,127 @@ las unidades.
 con el servicio de eco de Ekiga que nos permite comprobar si nos
 hemos conectado correctamente. El servicio de eco tiene la dirección
 sip:500@ekiga.net. Veamos el INVITE de cerca.
+
 * ¿Puede verse el nombre del que efectúa la llamada, ası́ como su
 dirección SIP?
+
+--From: "Gregorio Robles" <sip:grex@ekiga.net>;
+
 * ¿Qué es lo que contiene el cuerpo de la trama? ¿En qué formato/protocolo está?
+ -- Session Description Protocol Version (v): 0. Contiene los atributos que van a usar los dos UAs. SIP con SDP
+ 
 * ¿Tiene éxito el primer intento? ¿Cómo lo sabes?
+ -- No porque el servidor responde: SIP/2.0 407 Proxy Authentication Required
+ 
 * ¿En qué se diferencia el segundo INVITE más abajo del primero?
 ¿A qué crees que se debe esto?
 
+-- En el que el segundo tiene mas tamaño de los paquetes, ya que contiene la cabecera de autentificación.La llamada tiene éxito porque responde con un SIP/2.0 100 trying y luego con SIP/2.0 200 OK
+
+Proxy-Authorization: Digest username="grex", realm="ekiga.net", nonce="45a439f6ba5f681cd945fb7c40529fd1e0f28a81", uri="sip:500@ekiga.net", algorithm=md5, response="9a5627c14a8a433bd308d2ec54777240"
+
+
+
 11. Una vez conectado, estudia el intercambio de tramas.
 * ¿Qué protocolo(s) se utiliza(n)? ¿Para qué sirven estos protocolos?
+ -- RTP y H.261
+    RTP se encarga de enviar tramas de aplicaciones de tiempo real sin QoS
+    H.261 es un algoritmo de codificación de video.
+ 
 * ¿Cuál es el tamaño de paquete de los mismos?
+ -- RTP tiene 1712 bits
+    160 bytes payload
+ 
 * ¿Se utilizan bits de padding?
+ -- No se utilizan bits de relleno. Padding: False
+ 
 * ¿Cuál es la periodicidad de los paquetes (en origen; nota que la
 captura es en destino)?
+-- La periodicidas es 20 ms. Cada 160 bytes
+
 * ¿Cuántos bits/segundo se envı́an?
+--64kbps....-->1/(20x10^3) paquetes/segundo x 160 bytes/paquete = 8000 bytes/segundo 
+
 [Al terminar el ejercicio es recomendable hacer commit de los ficheros modificados]
 
 12. Vamos a ver más a fondo el intercambio RTP. En Telephony hay una
 opción RTP. Empecemos mirando los flujos RTP.
 * ¿Cuántos flujos hay? ¿por qué?
+ -- Dos flujos o streams, uno de audio y otro de video
+ 
 * ¿Cuántos paquetes se pierden?
+--Se pierden 0 paquetes.
+
 * ¿Cuál es el valor máximo del delta? ¿Y qué es lo que significa el
 valor de delta?
+ --El valor máximo de delta del primer flujo es 1290,479000
+   Para el segundo flujo es 1290,4444
+   Significa la diferencia del tiempos de llegada entre el paquete actual y el paquete anterior.
+ 
 * ¿Cuáles son los valores de jitter (medio y máximo)? ¿Qué
 quiere decir eso? ¿Crees que estamos ante una conversación de
 calidad?
+--Max Jitter = 183,095775 y Mean Jitter = 153,240 del primer flujo
+--Max Jitter = 119,635154 y Mean Jitter = 42,500 del segundo flujo
 
 13. Elige un paquete RTP de audio. Analiza el flujo de audio en Telephony
 -> RTP -> Stream Analysis.
+
 * ¿Cuánto valen el delta y el jitter para el primer paquete que
 ha llegado?
+-- El valor de delta es 0 ms y el jitter es 0 ms
+
 * ¿Podemos saber si éste es el primer paquete que nos han enviado?
+ -- Podemos saber que es el primero que nos ha llegado, pero no podemos saber si es el primer paquete, ya que el numero de secuencia en RTP se calcula de manera aleatoria y luego sigue el orden.
+ 
 * Los valores de jitter son menores de 10ms hasta un paquete
 dado. ¿Cuál?
+ -- Hasta el paquete 247 
+ 
 * ¿A qué se debe el cambio tan brusco del jitter?
+ --Se debe a una reducción del ancho de banda IP (una tasa de bit mucho más baja)
+ 
 * ¿Es comparable el cambio en el valor de jitter con el del delta?
 ¿Cual es más grande?
+ -- Si, si uno aumenta el otro tambien. Es mucho mas grande el delta.
+
 
 14. En Telephony selecciona el menú VoIP calls. Verás que se lista la
 llamada de voz IP capturada en una ventana emergente. Selecciona
 esa llamada y pulsa el botón Graph.
 * ¿Cuánto dura la conversación?
+ -- 38,5 - 17,5 = 21 segundos
+ 
 * ¿Cuáles son sus SSRC? ¿Por qué hay varios SSRCs? ¿Hay CSRCs?
+ -- Hay dos SSRCs
+  0x43306582 ---> 1127245186
+  0xbf4afd37 ---> 3209362743
+
 
 15. Identifica la trama donde se finaliza la conversación.
-* ¿Qué método SIP se utiliza?
+* ¿Qué método SIP se utiliza? 
+ -- Método BYE
+ 
 * ¿En qué trama(s)?
+ --924, 925, 927 y 933
+ 
 * ¿Por qué crees que se envı́a varias veces?
+ -- Porque no recibe SIP/2.0 200 OK
+
 
 16. Finalmente, se cierra la aplicación de VozIP.
+
 * ¿Por qué aparece una instrucción SIP del tipo REGISTER?
+--Para darse de baja con el expires=0
+
 * ¿En qué trama sucede esto?
+--950 y 952
+
 * ¿En qué se diferencia con la instrucción que se utilizó con anterioridad (al principio de la sesión)?
+--En que el expires=0
+
 [Al terminar el ejercicio es recomendable hacer commit de los ficheros modificados]
+
 
 Captura de una sesión SIP
 
@@ -229,22 +297,35 @@ completamente Ekiga.
 
 18. Captura una sesión SIP de una conversación con el número SIP sip:500@ekigan.net.
 Recuerda que has de comenzar a capturar tramas antes de arrancar
-Ekiga para ver todo el proceso3 .
+Ekiga para ver todo el proceso3.
 
 19. Observa las diferencias en el inicio de la conversación entre el entorno
-del laboratorio y el del ejercicio anterior4 :
+del laboratorio y el del ejercicio anterior :
 * ¿Se utilizan DNS y STUN? ¿Por qué?
+ -- Se utiliza, pero se hace antes de la captura que he hecho.
+  
 * ¿Son diferentes el registro y la descripción de la sesión?
+ -- El registro se diferencia en que no aparece el register en la captura que hacemos y que la dirección sip es diferente y en que los servidores sip tambien son diferentes.
+ 
 
 20. Identifica las diferencias existentes entre esta conversación y la conversación anterior:
 * ¿Cuántos flujos tenemos?
+ --Tres flujos, pero dos son los que necesitamos.
 * ¿Cuál es su periodicidad?
+ -- La periodicidas es 20 ms. Cada 160 bytes
+ 
 * ¿Cuánto es el valor máximo del delta y los valores medios y
 máximo del jitter?
+--Max Delta = 1072,041, Max Jitter = 93,090 y Mean Jitter = 10,241 del primer flujo
+--Max Delta = 991,795, Max Jitter = 95,627 y Mean Jitter = 5,031 del segundo flujo
+
 * ¿Podrı́as reproducir la conversación desde Wireshark? ¿Cómo?
 Comprueba que poniendo un valor demasiado pequeño para el
 buffer de jitter, la conversación puede no tener la calidad necesaria.
+--Si podría reproducir en Telephony--> RTP --> Stream Analysis --> Play --> Stream
+
 * ¿Sabrı́as decir qué tipo de servicio ofrece sip:500@ekiga.net?
+ -- Una videollamada.
 [Al terminar el ejercicio es recomendable hacer commit de los ficheros modificados]
 
 
